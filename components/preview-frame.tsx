@@ -3,9 +3,9 @@
 import { useState } from "react";
 
 const BREAKPOINTS = [
-  { label: "Mobile", width: 375, icon: "phone" },
-  { label: "Tablet", width: 768, icon: "tablet" },
-  { label: "Desktop", width: 1280, icon: "desktop" },
+  { label: "Mobile", width: 375 },
+  { label: "Tablet", width: 768 },
+  { label: "Desktop", width: 1280 },
 ] as const;
 
 export function PreviewFrame({

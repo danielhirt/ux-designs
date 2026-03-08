@@ -32,15 +32,18 @@ export function GalleryCard({ component }: { component: ComponentMeta }) {
           <p className="text-xs text-white/50 line-clamp-2">
             {component.description}
           </p>
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {component.tags.map((tag) => (
-              <span
-                key={tag}
-                className="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.08] text-white/50"
-              >
-                {tag}
-              </span>
-            ))}
+          <div className="flex items-center gap-3 pt-1">
+            <span className="text-[11px] text-white/30">{component.date}</span>
+            <div className="flex flex-wrap gap-1.5">
+              {component.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.08] text-white/50"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </article>

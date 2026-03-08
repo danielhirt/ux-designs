@@ -13,7 +13,11 @@ export interface ComponentMeta {
 
 const REGISTRY_DIR = path.join(process.cwd(), "registry");
 
+let _cache: ComponentMeta[] | null = null;
+
 export function getAllComponents(): ComponentMeta[] {
+  if (_cache) return _cache;
+
   const entries = fs.readdirSync(REGISTRY_DIR, { withFileTypes: true });
   const components: ComponentMeta[] = [];
 
@@ -26,6 +30,11 @@ export function getAllComponents(): ComponentMeta[] {
     const raw = fs.readFileSync(metaPath, "utf-8");
     const meta = JSON.parse(raw);
 
+    if (!meta.title || !meta.slug || !meta.prompt || !Array.isArray(meta.tags)) {
+      console.warn(`Invalid meta.json in ${entry.name}, skipping`);
+      continue;
+    }
+
     // Find the HTML file in the directory
     const files = fs.readdirSync(path.join(REGISTRY_DIR, entry.name));
     const htmlFile = files.find((f) => f.endsWith(".html"));
@@ -37,9 +46,10 @@ export function getAllComponents(): ComponentMeta[] {
     });
   }
 
-  return components.sort(
+  _cache = components.sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
+  return _cache;
 }
 
 export function getComponent(slug: string): ComponentMeta | undefined {
