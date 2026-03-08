@@ -31,3 +31,10 @@
 ::selection {
   background: rgba(255, 255, 255, 0.15);
 }
+
+/* Prism overrides — use our own dark background */
+pre[class*="language-"],
+code[class*="language-"] {
+  background: transparent;
+  text-shadow: none;
+}
