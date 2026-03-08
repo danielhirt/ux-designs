@@ -1,0 +1,8 @@
+{
+  "title": "Candle Shop Hero",
+  "slug": "candle-hero",
+  "prompt": "Design a full-viewport hero section for a handmade candle brand called Leora Lane. Warm, intimate, artisanal feel — like opening a hand-wrapped package. Split asymmetric layout: left 55% text, right 45% product image placeholder (rounded rectangle, 3:4 aspect, soft cream/mauve card with dusty-rose border). Apply a cutesy ordered-dither halftone dot pattern overlay: fine layer (3-4px pitch, dusty rose #BC7473, 8% opacity) and coarse layer (6px pitch, warm taupe #8B7355, 5% opacity, offset half-pitch). Dither fades toward center via radial CSS mask. Color palette: cream #ECDAC8 background, deep brown #3B2A1A text, dusty rose #BC7473 accent, soft gold #C49746, warm taupe #8B7355. Elegant serif typography (Baskervville headlines, Crimson Pro body). Hand-drawn wavy SVG border at top with organic curves. Torn deckled paper edge at bottom via SVG path. 5 sparkle decorations (✦) around headline with pulse animation (scale 1→1.15, staggered delays). Pill CTA button in dusty rose with hover lift and glow. Secondary 'Our Story →' link with squiggle SVG underline. Candlelight radial gradient glow behind product image. Paper texture noise via SVG feTurbulence filter at 3% opacity. Responsive: stack vertically below 768px. Fully standalone HTML.",
+  "tags": ["hero", "ecommerce", "dither", "handmade", "serif"],
+  "date": "2026-03-08",
+  "description": "Warm artisanal hero section with halftone dither overlay, deckled paper edges, and handmade craft details for a candle brand"
+}
