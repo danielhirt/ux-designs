@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getAllComponents, getComponent } from "@/lib/components";
+import { getAllComponents, getComponent, getComponentSource } from "@/lib/components";
 import { PreviewFrame } from "@/components/preview-frame";
 import { PromptBlock } from "@/components/prompt-block";
+import { SourceBlock } from "@/components/source-block";
 
 export async function generateStaticParams() {
   const components = getAllComponents();
@@ -33,6 +34,7 @@ export default async function DetailPage({
   const component = getComponent(slug);
   if (!component) notFound();
 
+  const source = getComponentSource(slug);
   const iframeSrc = `/registry/${component.slug}/${component.htmlFile}`;
 
   return (
@@ -77,13 +79,18 @@ export default async function DetailPage({
         </div>
       </div>
 
-      {/* Two-panel layout */}
-      <div className="grid lg:grid-cols-[1fr_400px] gap-6">
+      {/* Stacked layout */}
+      <div className="flex flex-col gap-12">
         {/* Preview */}
-        <PreviewFrame src={iframeSrc} title={component.title} />
+        <div className="h-[600px] lg:h-[800px] flex flex-col">
+          <PreviewFrame src={iframeSrc} title={component.title} source={source ?? undefined} />
+        </div>
 
-        {/* Prompt */}
-        <PromptBlock prompt={component.prompt} />
+        {/* Prompt + Source side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <PromptBlock prompt={component.prompt} />
+          {source && <SourceBlock source={source} />}
+        </div>
       </div>
     </main>
   );
