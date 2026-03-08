@@ -4,3 +4,7 @@
   --font-sans: var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
 }
+
+:root {
+  --thumb-scale: 0.28;
+}
