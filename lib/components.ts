@@ -67,3 +67,11 @@ export function getAllTags(): string[] {
   }
   return Array.from(tags).sort();
 }
+
+export function getComponentSource(slug: string): string | null {
+  const component = getComponent(slug);
+  if (!component) return null;
+  const htmlPath = path.join(REGISTRY_DIR, slug, component.htmlFile);
+  if (!fs.existsSync(htmlPath)) return null;
+  return fs.readFileSync(htmlPath, "utf-8");
+}
