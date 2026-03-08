@@ -32,9 +32,27 @@
   background: rgba(255, 255, 255, 0.15);
 }
 
-/* Prism overrides — use our own dark background */
+/* Prism overrides — dark theme matching our UI */
 pre[class*="language-"],
 code[class*="language-"] {
   background: transparent;
   text-shadow: none;
+  color: rgba(255, 255, 255, 0.5);
 }
+
+.token.tag { color: rgba(255, 255, 255, 0.45); }
+.token.attr-name { color: rgba(255, 255, 255, 0.35); }
+.token.attr-value { color: rgba(130, 170, 255, 0.6); }
+.token.punctuation { color: rgba(255, 255, 255, 0.25); }
+.token.comment { color: rgba(255, 255, 255, 0.18); font-style: italic; }
+.token.doctype,
+.token.prolog { color: rgba(255, 255, 255, 0.2); }
+.token.entity,
+.token.url { color: rgba(255, 255, 255, 0.35); }
+.token.string { color: rgba(130, 170, 255, 0.6); }
+.token.selector { color: rgba(200, 160, 255, 0.5); }
+.token.property { color: rgba(160, 210, 255, 0.5); }
+.token.value { color: rgba(180, 220, 180, 0.5); }
+.token.number { color: rgba(180, 220, 180, 0.5); }
+.token.function { color: rgba(220, 200, 150, 0.5); }
+.token.keyword { color: rgba(200, 160, 255, 0.5); }

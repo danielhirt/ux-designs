@@ -87,7 +87,7 @@ export default async function DetailPage({
         </div>
 
         {/* Prompt + Source side by side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[500px]">
           <PromptBlock prompt={component.prompt} />
           {source && <SourceBlock source={source} />}
         </div>

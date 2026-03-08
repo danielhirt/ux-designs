@@ -11,8 +11,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@types/prismjs": "^1.26.6",
     "geist": "^1.7.0",
     "next": "16.1.6",
+    "prismjs": "^1.30.0",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },

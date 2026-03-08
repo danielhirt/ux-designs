@@ -1,18 +1,25 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useMemo } from "react";
+import Prism from "prismjs";
+import "prismjs/components/prism-markup";
+
+const COLLAPSED_LINES = 20;
 
 export function SourceBlock({ source }: { source: string }) {
   const [copied, setCopied] = useState(false);
-  const codeRef = useRef<HTMLElement>(null);
+  const [expanded, setExpanded] = useState(false);
 
-  useEffect(() => {
-    // @ts-expect-error Prism loaded via CDN
-    if (typeof window !== "undefined" && window.Prism && codeRef.current) {
-      // @ts-expect-error Prism loaded via CDN
-      window.Prism.highlightElement(codeRef.current);
-    }
-  }, [source]);
+  const lineCount = source.split("\n").length;
+  const isLong = lineCount > COLLAPSED_LINES;
+  const displaySource = !expanded && isLong
+    ? source.split("\n").slice(0, COLLAPSED_LINES).join("\n")
+    : source;
+
+  const highlighted = useMemo(
+    () => Prism.highlight(displaySource, Prism.languages.markup, "markup"),
+    [displaySource]
+  );
 
   async function handleCopy() {
     try {
@@ -35,6 +42,7 @@ export function SourceBlock({ source }: { source: string }) {
           <span className="text-[11px] font-bold text-white/40 uppercase tracking-[0.1em]">
             Source
           </span>
+          <span className="text-[10px] text-white/20">{lineCount} lines</span>
         </div>
         <button
           onClick={handleCopy}
@@ -54,13 +62,49 @@ export function SourceBlock({ source }: { source: string }) {
           ) : "Copy"}
         </button>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-white/[0.05] scrollbar-track-transparent">
-        <pre className="p-5 m-0 text-[13px] leading-[1.6]">
-          <code ref={codeRef} className="language-markup">
-            {source}
-          </code>
-        </pre>
+
+      <div className="relative flex-1 min-h-0 overflow-hidden">
+        <div className="overflow-y-auto scrollbar-thin scrollbar-thumb-white/[0.05] scrollbar-track-transparent h-full">
+          <pre className="p-5 m-0 text-[13px] leading-[1.6] language-markup" tabIndex={0}>
+            <code
+              className="language-markup"
+              dangerouslySetInnerHTML={{ __html: highlighted }}
+            />
+          </pre>
+        </div>
+
+        {isLong && !expanded && (
+          <div className="absolute bottom-0 left-0 right-0">
+            <div className="h-20 bg-gradient-to-t from-[#0a0a0b] to-transparent pointer-events-none" />
+            <div className="bg-[#0a0a0b] px-5 pb-4 pt-1 flex justify-center">
+              <button
+                onClick={() => setExpanded(true)}
+                className="flex items-center gap-1.5 text-[11px] text-white/40 hover:text-white/60 transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+                Show all {lineCount} lines
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isLong && expanded && (
+          <div className="sticky bottom-0 bg-[#0a0a0b]/90 backdrop-blur-sm px-5 py-2 flex justify-center border-t border-white/[0.04]">
+            <button
+              onClick={() => setExpanded(false)}
+              className="flex items-center gap-1.5 text-[11px] text-white/40 hover:text-white/60 transition-colors"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="18 15 12 9 6 15" />
+              </svg>
+              Collapse
+            </button>
+          </div>
+        )}
       </div>
+
       <div className="px-5 py-3 border-t border-white/[0.05] bg-white/[0.01]">
         <div className="flex items-center gap-1.5 text-[10px] text-white/20">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
