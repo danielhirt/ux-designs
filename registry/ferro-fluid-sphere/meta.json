@@ -1,0 +1,8 @@
+{
+  "title": "Ferro-Fluid Sphere",
+  "slug": "ferro-fluid-sphere",
+  "prompt": "Create a self-contained HTML file with an interactive ferro-fluid sphere using Three.js (CDN). The sphere should feel like the Anomaly from No Man's Sky — an otherworldly, living orb suspended in deep space. Icosphere with layered 3D simplex noise displacement, spike-like peaks via power curve, highly reflective dark metallic material with iridescent fresnel edges, mouse-reactive spike attraction, bloom post-processing, chromatic aberration, and film grain.",
+  "tags": ["threejs", "3d", "animation", "interactive", "webgl"],
+  "date": "2026-03-10",
+  "description": "An otherworldly ferro-fluid sphere with simplex noise displacement, iridescent fresnel edges, mouse-reactive spikes, and cinematic post-processing — inspired by No Man's Sky's Anomaly"
+}

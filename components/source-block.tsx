@@ -3,6 +3,11 @@
 import { useState, useMemo } from "react";
 import Prism from "prismjs";
 import "prismjs/components/prism-markup";
+import "prismjs/components/prism-css";
+import "prismjs/components/prism-clike";
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-c";
+import "prismjs/components/prism-glsl";
 
 const COLLAPSED_LINES = 20;
 
@@ -17,7 +22,7 @@ export function SourceBlock({ source }: { source: string }) {
     : source;
 
   const highlighted = useMemo(
-    () => Prism.highlight(displaySource, Prism.languages.markup, "markup"),
+    () => Prism.highlight(displaySource, Prism.languages.html, "html"),
     [displaySource]
   );
 
@@ -65,9 +70,9 @@ export function SourceBlock({ source }: { source: string }) {
 
       <div className="relative flex-1 min-h-0 overflow-hidden">
         <div className="overflow-y-auto scrollbar-thin scrollbar-thumb-white/[0.05] scrollbar-track-transparent h-full">
-          <pre className="p-5 m-0 text-[13px] leading-[1.6] language-markup" tabIndex={0}>
+          <pre className="p-5 m-0 text-[13px] leading-[1.6] language-html" tabIndex={0}>
             <code
-              className="language-markup"
+              className="language-html"
               dangerouslySetInnerHTML={{ __html: highlighted }}
             />
           </pre>

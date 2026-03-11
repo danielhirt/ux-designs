@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ferro-Fluid Sphere</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  canvas { display: block; }
+  #c { position: fixed; top: 0; left: 0; }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<!-- Vertex Shader -->
+<script id="vertexShader" type="x-shader/x-vertex">
+uniform float uTime;
+uniform vec3 uMouse3D;
+uniform float uMouseInfluence;
+
+varying vec3 vNormal;
+varying vec3 vViewPosition;
+varying vec3 vWorldPosition;
+varying vec3 vObjectPosition;
+varying vec3 vViewWorld;
+
+void main() {
+  vec3 pos = position;
+
+  // Very subtle breathing — the whole shape pulses gently
+  float breath = sin(uTime * 0.4) * 0.008 + sin(uTime * 0.7) * 0.004;
+  pos *= 1.0 + breath;
+
+  // Subtle mouse attraction — slight bulge toward cursor
+  float mouseDist = length(pos - uMouse3D);
+  float mouseEffect = uMouseInfluence * (1.0 - clamp(mouseDist / 2.0, 0.0, 1.0)) * 0.03;
+  pos += normal * mouseEffect;
+
+  vObjectPosition = position; // original object-space position for interior sampling
+  vec4 worldPos = modelMatrix * vec4(pos, 1.0);
+  vWorldPosition = worldPos.xyz;
+  vViewWorld = normalize(worldPos.xyz - cameraPosition);
+
+  vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+  vViewPosition = -mvPosition.xyz;
+  vNormal = normalMatrix * normal;
+
+  gl_Position = projectionMatrix * mvPosition;
+}
+</script>
+
+<!-- Fragment Shader -->
+<script id="fragmentShader" type="x-shader/x-fragment">
+uniform samplerCube uEnvMap;
+uniform float uTime;
+
+varying vec3 vNormal;
+varying vec3 vViewPosition;
+varying vec3 vWorldPosition;
+varying vec3 vObjectPosition;
+varying vec3 vViewWorld;
+
+// Simplex noise for interior swirl
+vec4 permute(vec4 x){ return mod(((x*34.0)+1.0)*x, 289.0); }
+vec4 taylorInvSqrt(vec4 r){ return 1.79284291400159 - 0.85373472095314 * r; }
+float snoise(vec3 v){
+  const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+  const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+  vec3 i = floor(v + dot(v, C.yyy));
+  vec3 x0 = v - i + dot(i, C.xxx);
+  vec3 g = step(x0.yzx, x0.xyz);
+  vec3 l = 1.0 - g;
+  vec3 i1 = min(g.xyz, l.zxy);
+  vec3 i2 = max(g.xyz, l.zxy);
+  vec3 x1 = x0 - i1 + C.xxx;
+  vec3 x2 = x0 - i2 + C.yyy;
+  vec3 x3 = x0 - D.yyy;
+  i = mod(i, 289.0);
+  vec4 p = permute(permute(permute(
+      i.z + vec4(0.0, i1.z, i2.z, 1.0))
+    + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+    + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+  float n_ = 1.0/7.0;
+  vec3 ns = n_ * D.wyz - D.xzx;
+  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+  vec4 x_ = floor(j * ns.z);
+  vec4 y_ = floor(j - 7.0 * x_);
+  vec4 x = x_ * ns.x + ns.yyyy;
+  vec4 y = y_ * ns.x + ns.yyyy;
+  vec4 h = 1.0 - abs(x) - abs(y);
+  vec4 b0 = vec4(x.xy, y.xy);
+  vec4 b1 = vec4(x.zw, y.zw);
+  vec4 s0 = floor(b0)*2.0 + 1.0;
+  vec4 s1 = floor(b1)*2.0 + 1.0;
+  vec4 sh = -step(h, vec4(0.0));
+  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+  vec3 p0 = vec3(a0.xy, h.x);
+  vec3 p1 = vec3(a0.zw, h.y);
+  vec3 p2 = vec3(a1.xy, h.z);
+  vec3 p3 = vec3(a1.zw, h.w);
+  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+  p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+  m = m * m;
+  return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+}
+
+void main() {
+  // Flat shading — compute face normal from screen-space derivatives
+  vec3 faceNormal = normalize(cross(dFdx(vWorldPosition), dFdy(vWorldPosition)));
+  vec3 viewDir = normalize(vViewPosition);
+
+  // ── Interior Swirl Effect ──────────────────────────
+  // High-res volumetric interior: multiple octaves with tight domain warping
+  float t = uTime;
+
+  // Base sampling position — higher frequency for sharper detail
+  vec3 sBase = vObjectPosition * 3.5;
+
+  // Parallax depth offset — look "into" the sphere along view ray
+  vec3 pDeep = vObjectPosition * 2.8 + vViewWorld * 0.25;
+
+  // Domain warp chain: each layer warps the next for clean, flowing curves
+  // Pass 1: large-scale flow direction
+  float warp1x = snoise(sBase * 0.8 + vec3(t * 0.05, 0.0, t * -0.04));
+  float warp1y = snoise(sBase * 0.8 + vec3(0.0, t * 0.04, t * 0.03) + vec3(7.3));
+  float warp1z = snoise(sBase * 0.8 + vec3(t * -0.03, t * 0.05, 0.0) + vec3(13.7));
+  vec3 flow = vec3(warp1x, warp1y, warp1z) * 0.5;
+
+  // Pass 2: medium detail with flow applied
+  vec3 pWarped = sBase + flow;
+  float mid = snoise(pWarped * 1.6 + vec3(t * 0.06));
+  float midB = snoise(pWarped * 2.2 + vec3(mid * 0.3) + vec3(t * 0.04 + 3.1));
+
+  // Pass 3: fine filaments — sharp, clean energy veins
+  vec3 pFine = sBase + flow * 0.3 + vec3(mid, midB, mid * midB) * 0.25;
+  float fine = snoise(pFine * 5.0 + vec3(t * 0.08));
+  float fineB = snoise(pFine * 8.0 + vec3(fine * 0.2) + vec3(t * 0.06));
+
+  // Depth layer — independent sample for parallax volumetric feel
+  float deep = snoise(pDeep * 2.0 + flow * 0.4 + vec3(t * 0.05));
+
+  // Combine: weighted blend with sharper contrast curves
+  float swirlRaw = mid * 0.35 + midB * 0.25 + fine * 0.2 + fineB * 0.1 + deep * 0.1;
+  // Sharpen with contrast curve — cleaner separation between dark and bright
+  float swirlNorm = smoothstep(-0.4, 0.6, swirlRaw);
+  // Secondary sharp channel for bright veins
+  float veinChannel = smoothstep(0.2, 0.5, fine) * smoothstep(0.1, 0.4, midB);
+
+  // ── Color Palette ──────────────────────────────────
+  vec3 deepRed = vec3(0.08, 0.0, 0.005);
+  vec3 bloodRed = vec3(0.45, 0.015, 0.025);
+  vec3 brightRed = vec3(0.75, 0.04, 0.035);
+  vec3 hotCore = vec3(1.0, 0.25, 0.06);
+
+  // Interior color — clean gradations
+  vec3 interiorColor = mix(deepRed, bloodRed, smoothstep(0.2, 0.55, swirlNorm));
+  interiorColor = mix(interiorColor, brightRed, smoothstep(0.5, 0.8, swirlNorm) * 0.7);
+  // Sharp bright veins — clean energy filaments
+  interiorColor += hotCore * veinChannel * 0.35;
+  // Core glow on the brightest peaks
+  float coreGlow = smoothstep(0.85, 1.0, swirlNorm) * veinChannel;
+  interiorColor += vec3(1.0, 0.5, 0.1) * coreGlow * 0.25;
+
+  // ── Surface Properties ─────────────────────────────
+  float fresnel = pow(1.0 - abs(dot(viewDir, faceNormal)), 3.0);
+  float fresnelWide = pow(1.0 - abs(dot(viewDir, faceNormal)), 1.5);
+
+  // Environment reflection
+  vec3 reflected = reflect(-viewDir, faceNormal);
+  vec4 envColor = textureCube(uEnvMap, normalize(reflected));
+
+  // ── Diffuse Lighting — makes each facet visibly distinct ──
+  vec3 lightDir1 = normalize(vec3(0.8, 1.0, 1.5));
+  vec3 lightDir2 = normalize(vec3(-1.0, 0.3, 0.8));
+  vec3 lightDir3 = normalize(vec3(0.2, -0.8, 0.5));
+
+  float diff1 = max(dot(faceNormal, lightDir1), 0.0);
+  float diff2 = max(dot(faceNormal, lightDir2), 0.0);
+  float diff3 = max(dot(faceNormal, lightDir3), 0.0);
+
+  // Combined diffuse — each face gets a unique brightness from the 3 lights
+  float diffuse = diff1 * 0.5 + diff2 * 0.3 + diff3 * 0.2;
+  // Ambient floor so no face is fully black
+  diffuse = 0.25 + diffuse * 0.75;
+
+  // ── Compose Final Color ────────────────────────────
+  // Interior swirl modulated by per-facet diffuse lighting
+  vec3 color = interiorColor * diffuse;
+
+  // Surface reflectivity — gem-like, more reflective at edges
+  float reflectivity = 0.12 + fresnelWide * 0.25;
+  color = mix(color, envColor.rgb * 0.4, reflectivity);
+
+  // Facet edge darkening — visible seams between triangular faces
+  vec3 smoothNorm = normalize(vNormal);
+  float facetEdge = 1.0 - abs(dot(smoothNorm, faceNormal));
+  float edgeLine = smoothstep(0.02, 0.08, facetEdge);
+  color *= 1.0 - edgeLine * 0.5;
+
+  // Fresnel edge glow — blood red silhouette
+  vec3 edgeColor = mix(brightRed, hotCore, fresnel);
+  color += edgeColor * fresnel * 0.5;
+
+  // ── Specular Highlights ────────────────────────────
+  // Key light — white-hot specular on facets
+  float spec1 = pow(max(dot(reflect(-lightDir1, faceNormal), viewDir), 0.0), 40.0);
+  float spec1Sharp = pow(max(dot(reflect(-lightDir1, faceNormal), viewDir), 0.0), 200.0);
+  color += vec3(0.9, 0.15, 0.1) * spec1 * 0.5;
+  color += vec3(1.0, 0.85, 0.7) * spec1Sharp * 1.5;
+
+  // Secondary light — left fill specular
+  float spec2 = pow(max(dot(reflect(-lightDir2, faceNormal), viewDir), 0.0), 60.0);
+  color += vec3(0.6, 0.02, 0.02) * spec2 * 0.4;
+
+  // Back rim light
+  float backLight = pow(max(dot(faceNormal, -lightDir3), 0.0), 2.0);
+  color += vec3(0.15, 0.01, 0.02) * backLight * fresnel * 0.5;
+
+  // ── Per-facet sparkle variation ────────────────────
+  float facetID = dot(floor(vObjectPosition * 10.0), vec3(12.9898, 78.233, 45.164));
+  float facetSparkle = fract(sin(facetID) * 43758.5453);
+  color *= 0.88 + facetSparkle * 0.15;
+
+  gl_FragColor = vec4(color, 1.0);
+}
+</script>
+
+<!-- Chromatic Aberration Shader -->
+<script id="chromaticAbVert" type="x-shader/x-vertex">
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+</script>
+<script id="chromaticAbFrag" type="x-shader/x-fragment">
+uniform sampler2D tDiffuse;
+uniform float uIntensity;
+varying vec2 vUv;
+void main() {
+  vec2 dir = vUv - 0.5;
+  float d = length(dir);
+  float offset = uIntensity * d * d;
+  vec4 cr = texture2D(tDiffuse, vUv + dir * offset);
+  vec4 cg = texture2D(tDiffuse, vUv);
+  vec4 cb = texture2D(tDiffuse, vUv - dir * offset);
+  gl_FragColor = vec4(cr.r, cg.g, cb.b, 1.0);
+}
+</script>
+
+<!-- Film Grain Shader -->
+<script id="grainVert" type="x-shader/x-vertex">
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+</script>
+<script id="grainFrag" type="x-shader/x-fragment">
+uniform sampler2D tDiffuse;
+uniform float uGrainTime;
+uniform float uGrainIntensity;
+varying vec2 vUv;
+
+float random(vec2 co){
+  return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+void main() {
+  vec4 color = texture2D(tDiffuse, vUv);
+  float grain = random(vUv * uGrainTime) * 2.0 - 1.0;
+  color.rgb += grain * uGrainIntensity;
+  gl_FragColor = color;
+}
+</script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.162.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+// ── Scene Setup ──────────────────────────────────────────
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 0, 3.8);
+
+// ── Procedural Cubemap ───────────────────────────────────
+function generateCubeMap() {
+  const size = 256;
+  const faces = [];
+
+  for (let i = 0; i < 6; i++) {
+    const cvs = document.createElement('canvas');
+    cvs.width = size; cvs.height = size;
+    const ctx = cvs.getContext('2d');
+
+    const grad = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size * 0.8);
+
+    const hues = [
+      ['#050202', '#0f0404', '#080303'],
+      ['#040101', '#0c0303', '#070202'],
+      ['#050202', '#100505', '#090303'],
+      ['#040202', '#0d0404', '#070303'],
+      ['#050202', '#0e0404', '#080303'],
+      ['#040101', '#0b0303', '#060202']
+    ];
+
+    grad.addColorStop(0, hues[i][0]);
+    grad.addColorStop(0.5, hues[i][1]);
+    grad.addColorStop(1, hues[i][2]);
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+
+    faces.push(new THREE.CanvasTexture(cvs));
+  }
+
+  const cubeTexture = new THREE.CubeTexture(faces.map(t => t.image));
+  cubeTexture.needsUpdate = true;
+  return cubeTexture;
+}
+
+const envMap = generateCubeMap();
+
+// ── Atlas Sphere — Low-poly faceted icosahedron ──────────
+// Subdivision 3 gives visible triangular facets (~1280 faces)
+const geometry = new THREE.IcosahedronGeometry(1, 3);
+
+const uniforms = {
+  uTime: { value: 0 },
+  uMouse3D: { value: new THREE.Vector3(100, 100, 100) },
+  uMouseInfluence: { value: 0 },
+  uEnvMap: { value: envMap }
+};
+
+const material = new THREE.ShaderMaterial({
+  vertexShader: document.getElementById('vertexShader').textContent,
+  fragmentShader: document.getElementById('fragmentShader').textContent,
+  uniforms,
+  extensions: {
+    derivatives: true // Required for dFdx/dFdy flat shading
+  }
+});
+
+const sphere = new THREE.Mesh(geometry, material);
+scene.add(sphere);
+
+// ── Post-Processing ──────────────────────────────────────
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+// Bloom — slightly stronger for the internal glow
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  0.6,   // strength
+  0.8,   // radius
+  0.55   // threshold
+);
+composer.addPass(bloomPass);
+
+// Chromatic Aberration
+const chromaticAbPass = new ShaderPass({
+  uniforms: {
+    tDiffuse: { value: null },
+    uIntensity: { value: 0.01 }
+  },
+  vertexShader: document.getElementById('chromaticAbVert').textContent,
+  fragmentShader: document.getElementById('chromaticAbFrag').textContent
+});
+composer.addPass(chromaticAbPass);
+
+// Film Grain
+const grainPass = new ShaderPass({
+  uniforms: {
+    tDiffuse: { value: null },
+    uGrainTime: { value: 0 },
+    uGrainIntensity: { value: 0.035 }
+  },
+  vertexShader: document.getElementById('grainVert').textContent,
+  fragmentShader: document.getElementById('grainFrag').textContent
+});
+composer.addPass(grainPass);
+
+// ── Mouse Interaction ────────────────────────────────────
+const mouse = new THREE.Vector2(9999, 9999);
+const raycaster = new THREE.Raycaster();
+let mouseActive = false;
+
+function onPointerMove(e) {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  mouseActive = true;
+}
+
+function onPointerLeave() {
+  mouseActive = false;
+}
+
+window.addEventListener('pointermove', onPointerMove);
+window.addEventListener('pointerleave', onPointerLeave);
+
+window.addEventListener('touchmove', (e) => {
+  if (e.touches.length > 0) {
+    onPointerMove(e.touches[0]);
+  }
+}, { passive: true });
+
+window.addEventListener('touchend', onPointerLeave);
+
+// ── Resize ───────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  composer.setSize(w, h);
+  bloomPass.resolution.set(w, h);
+});
+
+// ── Animation Loop ───────────────────────────────────────
+const clock = new THREE.Clock();
+let targetMouseInfluence = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const elapsed = clock.getElapsedTime();
+
+  uniforms.uTime.value = elapsed;
+
+  // Mouse influence
+  if (mouseActive) {
+    raycaster.setFromCamera(mouse, camera);
+    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    const intersection = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, intersection);
+
+    if (intersection) {
+      uniforms.uMouse3D.value.copy(intersection);
+      targetMouseInfluence = 1.0;
+    }
+  } else {
+    targetMouseInfluence = 0;
+  }
+
+  uniforms.uMouseInfluence.value += (targetMouseInfluence - uniforms.uMouseInfluence.value) * 0.025;
+
+  // Slow rotation — majestic, deliberate
+  sphere.rotation.y = elapsed * 0.06;
+  sphere.rotation.x = Math.sin(elapsed * 0.025) * 0.08;
+
+  // Camera breathing
+  camera.position.z = 3.8 + Math.sin(elapsed * 0.25) * 0.06;
+
+  // Film grain time
+  grainPass.uniforms.uGrainTime.value = elapsed * 10;
+
+  composer.render();
+}
+
+animate();
+</script>
+</body>
+</html>

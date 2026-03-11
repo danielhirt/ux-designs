@@ -37,22 +37,48 @@ pre[class*="language-"],
 code[class*="language-"] {
   background: transparent;
   text-shadow: none;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.55);
 }
 
-.token.tag { color: rgba(255, 255, 255, 0.45); }
-.token.attr-name { color: rgba(255, 255, 255, 0.35); }
-.token.attr-value { color: rgba(130, 170, 255, 0.6); }
-.token.punctuation { color: rgba(255, 255, 255, 0.25); }
-.token.comment { color: rgba(255, 255, 255, 0.18); font-style: italic; }
+/* HTML / Markup */
+.token.tag { color: #e06c75; }
+.token.attr-name { color: #d19a66; }
+.token.attr-value,
+.token.attr-value .punctuation { color: #98c379; }
+.token.punctuation { color: rgba(255, 255, 255, 0.35); }
+.token.comment { color: rgba(255, 255, 255, 0.22); font-style: italic; }
 .token.doctype,
-.token.prolog { color: rgba(255, 255, 255, 0.2); }
+.token.prolog { color: rgba(255, 255, 255, 0.28); }
 .token.entity,
-.token.url { color: rgba(255, 255, 255, 0.35); }
-.token.string { color: rgba(130, 170, 255, 0.6); }
-.token.selector { color: rgba(200, 160, 255, 0.5); }
-.token.property { color: rgba(160, 210, 255, 0.5); }
-.token.value { color: rgba(180, 220, 180, 0.5); }
-.token.number { color: rgba(180, 220, 180, 0.5); }
-.token.function { color: rgba(220, 200, 150, 0.5); }
-.token.keyword { color: rgba(200, 160, 255, 0.5); }
+.token.url { color: #56b6c2; }
+
+/* CSS */
+.token.selector { color: #e06c75; }
+.token.property { color: #56b6c2; }
+.token.value,
+.token.color { color: #d19a66; }
+.token.unit { color: #e06c75; }
+.token.important { color: #c678dd; }
+.token.atrule { color: #c678dd; }
+.token.rule { color: #c678dd; }
+
+/* JavaScript */
+.token.keyword { color: #c678dd; }
+.token.function { color: #61afef; }
+.token.string { color: #98c379; }
+.token.number { color: #d19a66; }
+.token.boolean { color: #d19a66; }
+.token.operator { color: #56b6c2; }
+.token.constant { color: #d19a66; }
+.token.class-name { color: #e5c07b; }
+.token.template-string { color: #98c379; }
+.token.interpolation { color: #e06c75; }
+.token.regex { color: #98c379; }
+.token.parameter { color: rgba(255, 255, 255, 0.7); }
+
+/* GLSL */
+.token.builtin { color: #61afef; }
+
+/* Inline script/style language tags */
+.language-css .token.string { color: #98c379; }
+.language-javascript .token.tag { color: inherit; }
