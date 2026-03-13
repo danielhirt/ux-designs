@@ -175,9 +175,17 @@
       ctx.font = '14px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      const ncx = w / 2, ncy = h / 2;
+      const maxDrift = Math.min(w, h) * 0.4;
       for (const sym of notation) {
         sym.x += sym.vx * dt;
         sym.y += sym.vy * dt;
+        // Soft boundary: reverse velocity if drifting too far from center
+        const ddx = sym.x - ncx, ddy = sym.y - ncy;
+        if (ddx * ddx + ddy * ddy > maxDrift * maxDrift) {
+          sym.vx = -Math.abs(sym.vx) * Math.sign(ddx);
+          sym.vy = -Math.abs(sym.vy) * Math.sign(ddy);
+        }
         const opacity = (Math.sin(t * Math.PI * 2 / sym.fadePeriod + sym.fadeOffset) * 0.5 + 0.5) * 0.12;
         const color = sym.isBlue ? '70, 130, 255' : '220, 170, 60';
         ctx.fillStyle = `rgba(${color}, ${opacity})`;
@@ -295,9 +303,15 @@
     let lastTime = 0;
 
     function render(time) {
-      // Delta time tracking
-      const deltaTime = lastTime === 0 ? 0 : (time - lastTime) / 1000;
+      // Delta time tracking (capped at 100ms to prevent spikes after tab backgrounding)
+      const deltaTime = lastTime === 0 ? 0 : Math.min((time - lastTime) / 1000, 0.1);
       lastTime = time;
+
+      // Skip frame if canvas resized but debounce hasn't fired yet
+      if (canvas.width !== w || canvas.height !== h) {
+        if (!reduceMotion) requestAnimationFrame(render);
+        return;
+      }
 
       const t = time / 1000;
       const data = imageData.data;
