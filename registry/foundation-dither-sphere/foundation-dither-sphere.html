@@ -19,8 +19,8 @@
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
 
-    const w = canvas.width;
-    const h = canvas.height;
+    let w = canvas.width;
+    let h = canvas.height;
 
     // 8x8 Bayer threshold matrix (normalized to 0-1)
     const BAYER = [
@@ -39,8 +39,7 @@
     }
 
     // Reusable ImageData buffer
-    const imageData = ctx.createImageData(w, h);
-    const buf = imageData.data;
+    let imageData = ctx.createImageData(w, h);
 
     function setPixel(data, x, y, r, g, b, a) {
       const i = (y * w + x) * 4;
