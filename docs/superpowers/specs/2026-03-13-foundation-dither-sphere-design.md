@@ -12,12 +12,25 @@ Amber-gold primary palette with cold blue tones threaded through the mathematica
 - **Tags:** `dither`, `animation`, `canvas`, `sci-fi`, `generative`
 - **File:** `registry/foundation-dither-sphere/foundation-dither-sphere.html`
 
+### meta.json
+
+```json
+{
+  "title": "Foundation Dither Sphere",
+  "slug": "foundation-dither-sphere",
+  "prompt": "A psychohistory-inspired prediction sphere rendered entirely through 8x8 Bayer matrix ordered dithering. Amber-gold sphere with cold blue data streams converging inward, evoking Hari Seldon's vault projections from Foundation. Pure Canvas 2D, ambient animation with breathing radius, dither crawl, and flowing particle streams. Dark void background with sparse floating mathematical notation.",
+  "tags": ["dither", "animation", "canvas", "sci-fi", "generative"],
+  "date": "2026-03-13",
+  "description": "A Bayer-dithered prediction sphere with converging data streams, inspired by Foundation's psychohistory visualizations."
+}
+```
+
 ## Visual Composition
 
 ### The Sphere (center stage)
 
 - Occupies ~40% of viewport height, centered in canvas
-- Built pixel-by-pixel through an **8x8 Bayer threshold matrix**
+- Built pixel-by-pixel through an **8x8 Bayer threshold matrix** (standard recursive formulation, see Bayer Matrix section below)
 - 3D volume achieved via normal-based diffuse + specular lighting — all expressed purely through dither density (on/off pixels, no gradients)
 - Light source positioned upper-left to create natural highlight/shadow distribution
 - Specular highlight near the top-left creates a bright concentration of dither pixels
@@ -26,7 +39,8 @@ Amber-gold primary palette with cold blue tones threaded through the mathematica
 ### Data Streams (5-7 streams)
 
 - Curved particle trails spiraling inward from canvas edges toward the sphere
-- Each stream follows a unique spiral path (parametric curve with angular offset)
+- Each stream follows an Archimedean spiral path: radius decreases linearly from canvas edge to sphere surface, with a unique angular offset per stream (evenly distributed around the sphere: `baseAngle = streamIndex * 2π / streamCount`)
+- ~50-80 dithered particles per stream, spaced evenly along the path
 - **Color transition along path:** outer portions rendered in blue (`rgb(70, 130, 255)`) representing raw incoming data, transitioning to amber-gold (`rgb(220, 170, 60)`) as they approach the sphere — suggesting data being processed into prediction
 - Streams are also Bayer-dithered — the entire scene shares the same dithering language
 - Particle density increases near the sphere (convergence)
@@ -85,6 +99,23 @@ All ambient, running on `requestAnimationFrame`. No user interaction.
 
 ## Technical Approach
 
+### Bayer Matrix
+
+The 8x8 ordered dither threshold matrix, normalized to 0-1. Generated via the standard recursive formula `M(2n) = (1/4) * [4*M(n), 4*M(n)+2; 4*M(n)+3, 4*M(n)+1]` starting from `M(2) = [0,2;3,1]`:
+
+```
+ 0  32   8  40   2  34  10  42
+48  16  56  24  50  18  58  26
+12  44   4  36  14  46   6  38
+60  28  52  20  62  30  54  22
+ 3  35  11  43   1  33   9  41
+51  19  59  27  49  17  57  25
+15  47   7  39  13  45   5  37
+63  31  55  23  61  29  53  21
+```
+
+Each value is divided by 64 to produce a threshold in [0, 1). A pixel is drawn when its computed luminance exceeds the threshold at its `(x % 8, y % 8)` position.
+
 ### Rendering: Canvas 2D with ImageData
 
 - **Why Canvas 2D:** Bayer dithering requires per-pixel threshold comparison — Canvas 2D with `ImageData` direct pixel buffer manipulation is the most efficient approach. No WebGL overhead needed.
@@ -113,14 +144,13 @@ All ambient, running on `requestAnimationFrame`. No user interaction.
 - **ImageData buffer:** Write pixels directly to an `ImageData` object and `putImageData` once per frame, rather than thousands of `fillRect` calls
 - **Sphere bounding box:** Only iterate pixels within the sphere's bounding rectangle + margin, not the full canvas
 - **Notation rendering:** Use `fillText` for math symbols — only 8-12 of them, negligible cost
-- **Target:** 60fps on modern hardware. The sphere is the main cost (~150-200px diameter = ~30,000 pixel comparisons per frame). With ImageData buffer this should be well within budget.
+- **Target:** 60fps on modern hardware. At the gallery's largest breakpoint (1280x800 CSS), 40% viewport height = 320 CSS px diameter sphere. With a 2x2 CSS pixel dither cell, the sphere bounding box is ~160x160 = ~25,600 threshold comparisons per frame — well within budget. Even at 1:1 CSS pixels (~320x320 = ~102,400 comparisons), ImageData buffer writes keep this fast.
 
 ### Responsive Scaling
 
 - Canvas element fills the iframe viewport (`width: 100vw; height: 100vh`)
-- Canvas resolution set to match `devicePixelRatio` for crisp pixels on retina displays
+- Canvas resolution operates at **1:1 CSS pixel ratio** (do NOT multiply by `devicePixelRatio`). This keeps each dither cell = 1 CSS pixel, which on retina displays becomes 2x2 device pixels — producing a visible, chunky Bayer grid that reads as the intended aesthetic. A 1-device-pixel dither would appear nearly smooth on retina and defeat the purpose.
 - Sphere size, stream lengths, and notation positions are computed relative to canvas dimensions — not hardcoded pixel values
-- The dither pixel size stays at 1 device pixel (or 2 CSS pixels on retina) to maintain the fine-grained Bayer texture
 
 ### File Structure
 
@@ -143,6 +173,10 @@ What separates a great version from a mediocre one:
 3. **Blue-to-amber transition is a phase change** — raw data becoming knowledge, not just a color lerp.
 4. **Animation is hypnotic, not distracting** — slow enough to stare at, fast enough to notice. The breathing and crawl should feel alive but calm.
 5. **The Bayer grid is the aesthetic** — the ordered pattern should be visible and celebrated, not hidden. The mathematical regularity IS the Foundation reference.
+
+## Accessibility
+
+- Respect `prefers-reduced-motion: reduce` by rendering a single static frame (sphere + streams at a fixed position, no animation loop). Check via `window.matchMedia('(prefers-reduced-motion: reduce)')` at startup and on change.
 
 ## Out of Scope
 
