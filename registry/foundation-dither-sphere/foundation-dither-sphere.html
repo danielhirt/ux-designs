@@ -34,10 +34,6 @@
       63,31,55,23,61,29,53,21
     ].map(v => v / 64);
 
-    function getBayerThreshold(x, y) {
-      return BAYER[((y & 7) << 3) + (x & 7)];
-    }
-
     function getBayerThresholdSmooth(x, y, offset) {
       const sx = x + offset;
       const fx = Math.floor(sx);
@@ -243,6 +239,59 @@
       }
     }
 
+    // --- Prefers-reduced-motion support ---
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let reduceMotion = motionQuery.matches;
+    motionQuery.addEventListener('change', (e) => {
+      reduceMotion = e.matches;
+      if (!reduceMotion) {
+        lastTime = 0;
+        requestAnimationFrame(render);
+      }
+    });
+
+    // --- Debounced resize handler ---
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(handleResize, 200);
+    });
+
+    function handleResize() {
+      const newW = canvas.clientWidth;
+      const newH = canvas.clientHeight;
+      canvas.width = newW;
+      canvas.height = newH;
+      imageData = ctx.createImageData(newW, newH);
+
+      const cx = newW / 2;
+      const cy = newH / 2;
+      const newMaxRadius = Math.max(newW, newH) * 0.5;
+
+      // Update stream geometry WITHOUT resetting particle t values
+      for (const stream of streams) {
+        stream.maxRadius = newMaxRadius;
+      }
+
+      // Rescale notation positions proportionally
+      const oldCx = w / 2;
+      const oldCy = h / 2;
+      for (const sym of notation) {
+        sym.x = cx + (sym.x - oldCx) * (newW / w);
+        sym.y = cy + (sym.y - oldCy) * (newH / h);
+      }
+
+      // Update stored dimensions
+      w = newW;
+      h = newH;
+
+      // If in reduced-motion mode, re-render the static frame at new size
+      if (reduceMotion) {
+        lastTime = 0;
+        render(0);
+      }
+    }
+
     let lastTime = 0;
 
     function render(time) {
@@ -292,7 +341,9 @@
       // Floating notation (drawn after glow, on top)
       renderNotation(ctx, notation, time, deltaTime);
 
-      requestAnimationFrame(render);
+      if (!reduceMotion) {
+        requestAnimationFrame(render);
+      }
     }
 
     requestAnimationFrame(render);
