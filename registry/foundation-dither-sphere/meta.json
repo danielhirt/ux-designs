@@ -1,0 +1,8 @@
+{
+  "title": "Foundation Dither Sphere",
+  "slug": "foundation-dither-sphere",
+  "prompt": "A psychohistory-inspired prediction sphere rendered entirely through 8x8 Bayer matrix ordered dithering. Amber-gold sphere with cold blue data streams converging inward, evoking Hari Seldon's vault projections from Foundation. Pure Canvas 2D, ambient animation with breathing radius, dither crawl, and flowing particle streams. Dark void background with sparse floating mathematical notation.",
+  "tags": ["dither", "animation", "canvas", "sci-fi", "generative"],
+  "date": "2026-03-13",
+  "description": "A Bayer-dithered prediction sphere with converging data streams, inspired by Foundation's psychohistory visualizations."
+}

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Foundation Dither Sphere</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { margin: 0; overflow: hidden; background: #08060a; }
+    canvas { width: 100vw; height: 100vh; display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // 8x8 Bayer threshold matrix (normalized to 0-1)
+    const BAYER = [
+      0,32,8,40,2,34,10,42,
+      48,16,56,24,50,18,58,26,
+      12,44,4,36,14,46,6,38,
+      60,28,52,20,62,30,54,22,
+      3,35,11,43,1,33,9,41,
+      51,19,59,27,49,17,57,25,
+      15,47,7,39,13,45,5,37,
+      63,31,55,23,61,29,53,21
+    ].map(v => v / 64);
+
+    function getBayerThreshold(x, y) {
+      return BAYER[((y & 7) << 3) + (x & 7)];
+    }
+
+    // Reusable ImageData buffer
+    const imageData = ctx.createImageData(w, h);
+    const buf = imageData.data;
+
+    function setPixel(data, x, y, r, g, b, a) {
+      const i = (y * w + x) * 4;
+      data[i]     = r;
+      data[i + 1] = g;
+      data[i + 2] = b;
+      data[i + 3] = a * 255;
+    }
+
+    function smoothstep(edge0, edge1, x) {
+      const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+      return t * t * (3 - 2 * t);
+    }
+
+    function clamp(v, lo, hi) {
+      return v < lo ? lo : v > hi ? hi : v;
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function renderSphere(imageData, cx, cy, radius, crawlOffset) {
+      const data = imageData.data;
+      const x0 = Math.max(0, Math.floor(cx - radius));
+      const x1 = Math.min(w - 1, Math.ceil(cx + radius));
+      const y0 = Math.max(0, Math.floor(cy - radius));
+      const y1 = Math.min(h - 1, Math.ceil(cy + radius));
+
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          const dx = x - cx;
+          const dy = y - cy;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist > radius) continue;
+
+          const distRatio = dist / radius;
+
+          // 3D surface normal
+          const nx = dx / radius;
+          const ny = dy / radius;
+          const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
+
+          // Diffuse lighting (light from upper-left)
+          const diffuse = Math.max(0, nx * -0.4 + ny * -0.5 + nz * 0.75);
+
+          // Specular: simplified Blinn-Phong
+          const spec = Math.pow(Math.max(0, nz * 0.8 + nx * -0.3 + ny * -0.3), 40) * 0.6;
+
+          // Luminance
+          let lum = clamp(diffuse * 0.65 + spec * 0.5, 0, 1);
+
+          // Smooth edge falloff
+          const edge = smoothstep(0.85, 1.0, distRatio);
+          lum *= (1 - edge);
+
+          // Bayer dithering with crawl offset
+          const bx = x + (crawlOffset & 7);
+          const by = y + ((crawlOffset >> 3) & 7);
+          const threshold = getBayerThreshold(bx, by);
+
+          if (lum <= threshold) continue;
+
+          // Color: amber core with blue sine-wave blend
+          const blueMix = Math.max(0, Math.sin(distRatio * Math.PI * 1.5)) * 0.25;
+          const r = Math.round(lerp(220, 70, blueMix));
+          const g = Math.round(lerp(170, 130, blueMix));
+          const b = Math.round(lerp(60, 255, blueMix));
+
+          // Alpha
+          const a = 0.6 + lum * 0.4;
+
+          setPixel(data, x, y, r, g, b, a);
+        }
+      }
+    }
+
+    function render(time) {
+      const data = imageData.data;
+
+      // Fill background (8, 6, 10) fully opaque
+      for (let i = 0; i < data.length; i += 4) {
+        data[i]     = 8;
+        data[i + 1] = 6;
+        data[i + 2] = 10;
+        data[i + 3] = 255;
+      }
+
+      const cx = w / 2;
+      const cy = h / 2;
+      const radius = Math.min(w, h) * 0.2;
+      const crawlOffset = 0;
+
+      renderSphere(imageData, cx, cy, radius, crawlOffset);
+
+      ctx.putImageData(imageData, 0, 0);
+      requestAnimationFrame(render);
+    }
+
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>
